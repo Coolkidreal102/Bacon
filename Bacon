@@ -1,5 +1,4 @@
--- // BACON HUB V20 //
-local ScreenName = "BaconHub_V20"
+local ScreenName = "BaconHub_V22"
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
@@ -8,36 +7,73 @@ if LocalPlayer.PlayerGui:FindFirstChild(ScreenName) then LocalPlayer.PlayerGui[S
 
 local Toggles = {
     God = false, Fly = false, 
-    Speed = false, Jump = false, -- SEPARATED
-    Reveal = false, Dir = false, Plat = false
+    Speed = false, Jump = false, 
+    Reveal = false, Dir = false, 
+    Plat = false, Noclip = false,
+    Desync = false
 }
 
 local Config = {
-    WS = 65, JP = 125, FS = 50, Color = Color3.fromRGB(255, 0, 80)
+    WS = 65, JP = 125, FS = 70,
+    Color = Color3.fromRGB(255, 0, 80)
 }
 
--- // CORE LOGIC //
+-- // THE CORE ENGINE //
 local function charSetup(char)
     local hum = char:WaitForChild("Humanoid")
     local hrp = char:WaitForChild("HumanoidRootPart")
+    
     local bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(0,0,0)
+    local bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(0,0,0)
 
     RunService.Heartbeat:Connect(function()
         if not char.Parent then return end
         
+        -- 1. DESYNC LOGIC (Moves your hitbox randomly to server)
+        if Toggles.Desync then
+            local oldVelocity = hrp.Velocity
+            hrp.Velocity = Vector3.new(1000, 1000, 1000) -- Fake velocity for server
+            RunService.RenderStepped:Wait()
+            hrp.Velocity = oldVelocity
+        end
+
+        -- 2. GOD MODE
         if Toggles.God then
             hum.Health = 100
             if hum:GetState() == Enum.HumanoidStateType.Dead then hum:ChangeState(Enum.HumanoidStateType.Running) end
         end
 
-        -- SEPARATED MOVEMENT
-        hum.WalkSpeed = Toggles.Speed and Config.WS or 16
-        hum.JumpPower = Toggles.Jump and Config.JP or 50
+        -- 3. NOCLIP
+        if Toggles.Noclip then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = false end
+            end
+        end
 
-        if Toggles.Fly then
-            bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
-            bv.Velocity = hum.MoveDirection * Config.FS + Vector3.new(0, 2, 0)
-        else bv.MaxForce = Vector3.new(0,0,0) end
+        -- 4. SPEED & JUMP (Fully Separate)
+        if not Toggles.Fly then
+            hum.WalkSpeed = Toggles.Speed and Config.WS or 16
+            hum.JumpPower = Toggles.Jump and Config.JP or 50
+            bv.MaxForce = Vector3.new(0,0,0)
+            bg.MaxTorque = Vector3.new(0,0,0)
+        else
+            -- SMOOTH FLY
+            hum.WalkSpeed = 0
+            bv.MaxForce = Vector3.new(4e5, 4e5, 4e5)
+            bg.MaxTorque = Vector3.new(4e5, 4e5, 4e5)
+            bg.CFrame = workspace.CurrentCamera.CFrame
+            bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * (hum.MoveDirection.Magnitude * Config.FS)
+            if hum.MoveDirection.Magnitude == 0 then bv.Velocity = Vector3.new(0,0.1,0) end
+        end
+
+        -- 5. SAFE PLATFORM
+        if Toggles.Plat then
+            local p = workspace:FindFirstChild("BaconPlat") or Instance.new("Part", workspace)
+            p.Name = "BaconPlat"; p.Size = Vector3.new(12, 1, 12); p.Anchored = true; p.Color = Config.Color; p.Transparency = 0.5; p.Material = Enum.Material.Neon
+            p.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0)
+        elseif workspace:FindFirstChild("BaconPlat") then 
+            workspace.BaconPlat:Destroy() 
+        end
     end)
 end
 
@@ -46,11 +82,8 @@ LocalPlayer.CharacterAdded:Connect(charSetup)
 
 -- // UI //
 local Screen = Instance.new("ScreenGui", LocalPlayer.PlayerGui); Screen.Name = ScreenName; Screen.ResetOnSpawn = false
-local Main = Instance.new("Frame", Screen); Main.Size = UDim2.new(0, 250, 0, 350); Main.Position = UDim2.new(0.5, -125, 0.5, -175); Main.BackgroundColor3 = Color3.fromRGB(10,10,10); Instance.new("UICorner", Main)
-Instance.new("UIStroke", Main).Color = Config.Color
-
-local List = Instance.new("ScrollingFrame", Main); List.Size = UDim2.new(1, -20, 1, -50); List.Position = UDim2.new(0, 10, 0, 45); List.BackgroundTransparency = 1; List.ScrollBarThickness = 0
-Instance.new("UIListLayout", List).Padding = UDim.new(0, 5)
+local Main = Instance.new("Frame", Screen); Main.Size = UDim2.new(0, 250, 0, 380); Main.Position = UDim2.new(0.5, -125, 0.5, -190); Main.BackgroundColor3 = Color3.fromRGB(10,10,10); Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Config.Color
+local List = Instance.new("ScrollingFrame", Main); List.Size = UDim2.new(1, -20, 1, -55); List.Position = UDim2.new(0, 10, 0, 50); List.BackgroundTransparency = 1; List.ScrollBarThickness = 0; Instance.new("UIListLayout", List).Padding = UDim.new(0, 5)
 
 local function addBtn(txt, tag)
     local b = Instance.new("TextButton", List); b.Size = UDim2.new(1, 0, 0, 35); b.BackgroundColor3 = Color3.fromRGB(25,25,25); b.Text = txt; b.TextColor3 = Color3.new(1,1,1); b.Font = Enum.Font.Gotham; b.TextSize = 11; Instance.new("UICorner", b)
@@ -62,44 +95,33 @@ local function addBtn(txt, tag)
 end
 
 addBtn("GOD MODE", "God")
-addBtn("FLY", "Fly")
-addBtn("SPEED", "Speed") -- Separate
-addBtn("JUMP", "Jump")   -- Separate
-addBtn("REVEAL ALL (BYPASS)", "Reveal")
+addBtn("DESYNC (LAG SWITCH)", "Desync")
+addBtn("SMOOTH FLY", "Fly")
+addBtn("SPEED ONLY", "Speed")
+addBtn("JUMP ONLY", "Jump")
+addBtn("NOCLIP", "Noclip")
+addBtn("SAFE PLATFORM", "Plat")
+addBtn("REVEAL (BYPASS)", "Reveal")
 addBtn("DIRECTION SPHERE", "Dir")
 
--- // THE "REVEAL" BYPASS ENGINE //
+-- // VISUALS //
 RunService.RenderStepped:Connect(function()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character then
             local char = p.Character
-            
-            -- AGGRESSIVE REVEAL
             if Toggles.Reveal then
-                -- Bypass: Force Parent to Workspace if game tries to hide the model
-                if char.Parent ~= workspace then char.Parent = workspace end 
-                
                 for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") or v:IsA("Decal") then
-                        v.Transparency = 0
-                        v.LocalTransparencyModifier = 0
-                    end
+                    if v:IsA("BasePart") or v:IsA("Decal") then v.LocalTransparencyModifier = 0; v.Transparency = 0 end
                 end
             end
-
-            -- SPHERE
             local s = char:FindFirstChild("BaconSphere")
             if not s and Toggles.Dir then
                 s = Instance.new("Part", char); s.Name = "BaconSphere"; s.Shape = Enum.PartType.Ball; s.Size = Vector3.new(2,2,2); s.Color = Config.Color; s.Material = Enum.Material.Neon; s.Anchored = true; s.CanCollide = false
             end
             if s then
                 s.Transparency = Toggles.Dir and 0.4 or 1
-                if char:FindFirstChild("HumanoidRootPart") then
-                    s.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, 1.5, -2.5)
-                end
+                if char:FindFirstChild("HumanoidRootPart") then s.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, 1.5, -2.5) end
             end
         end
     end
 end)
-
--- Draggable logic included...
