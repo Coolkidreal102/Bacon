@@ -1,126 +1,104 @@
-local ScreenName = "BaconHub_V22"
+-- // BACON HUB V25: SMART SPHERE & SHIFT LOCK //
+local ScreenName = "BaconHub_V25"
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 local LocalPlayer = Players.LocalPlayer
 
 if LocalPlayer.PlayerGui:FindFirstChild(ScreenName) then LocalPlayer.PlayerGui[ScreenName]:Destroy() end
 
-local Toggles = {
-    God = false, Fly = false, 
-    Speed = false, Jump = false, 
-    Reveal = false, Dir = false, 
-    Plat = false, Noclip = false,
-    Desync = false
-}
+local Toggles = { God = false, Fly = false, Speed = false, Jump = false, Reveal = false, Dir = false, Plat = false, Noclip = false, Desync = false, ShiftLock = false }
+local Config = { WS = 65, JP = 125, FS = 70, Color = Color3.fromRGB(255, 0, 80), Alert = Color3.fromRGB(0, 255, 0) }
 
-local Config = {
-    WS = 65, JP = 125, FS = 70,
-    Color = Color3.fromRGB(255, 0, 80)
-}
-
--- // THE CORE ENGINE //
-local function charSetup(char)
-    local hum = char:WaitForChild("Humanoid")
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    
-    local bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(0,0,0)
-    local bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(0,0,0)
-
-    RunService.Heartbeat:Connect(function()
-        if not char.Parent then return end
-        
-        -- 1. DESYNC LOGIC (Moves your hitbox randomly to server)
-        if Toggles.Desync then
-            local oldVelocity = hrp.Velocity
-            hrp.Velocity = Vector3.new(1000, 1000, 1000) -- Fake velocity for server
-            RunService.RenderStepped:Wait()
-            hrp.Velocity = oldVelocity
-        end
-
-        -- 2. GOD MODE
-        if Toggles.God then
-            hum.Health = 100
-            if hum:GetState() == Enum.HumanoidStateType.Dead then hum:ChangeState(Enum.HumanoidStateType.Running) end
-        end
-
-        -- 3. NOCLIP
-        if Toggles.Noclip then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = false end
-            end
-        end
-
-        -- 4. SPEED & JUMP (Fully Separate)
-        if not Toggles.Fly then
-            hum.WalkSpeed = Toggles.Speed and Config.WS or 16
-            hum.JumpPower = Toggles.Jump and Config.JP or 50
-            bv.MaxForce = Vector3.new(0,0,0)
-            bg.MaxTorque = Vector3.new(0,0,0)
-        else
-            -- SMOOTH FLY
-            hum.WalkSpeed = 0
-            bv.MaxForce = Vector3.new(4e5, 4e5, 4e5)
-            bg.MaxTorque = Vector3.new(4e5, 4e5, 4e5)
-            bg.CFrame = workspace.CurrentCamera.CFrame
-            bv.Velocity = workspace.CurrentCamera.CFrame.LookVector * (hum.MoveDirection.Magnitude * Config.FS)
-            if hum.MoveDirection.Magnitude == 0 then bv.Velocity = Vector3.new(0,0.1,0) end
-        end
-
-        -- 5. SAFE PLATFORM
-        if Toggles.Plat then
-            local p = workspace:FindFirstChild("BaconPlat") or Instance.new("Part", workspace)
-            p.Name = "BaconPlat"; p.Size = Vector3.new(12, 1, 12); p.Anchored = true; p.Color = Config.Color; p.Transparency = 0.5; p.Material = Enum.Material.Neon
-            p.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0)
-        elseif workspace:FindFirstChild("BaconPlat") then 
-            workspace.BaconPlat:Destroy() 
-        end
-    end)
-end
-
-if LocalPlayer.Character then charSetup(LocalPlayer.Character) end
-LocalPlayer.CharacterAdded:Connect(charSetup)
-
--- // UI //
+-- // UI CONSTRUCTION //
 local Screen = Instance.new("ScreenGui", LocalPlayer.PlayerGui); Screen.Name = ScreenName; Screen.ResetOnSpawn = false
-local Main = Instance.new("Frame", Screen); Main.Size = UDim2.new(0, 250, 0, 380); Main.Position = UDim2.new(0.5, -125, 0.5, -190); Main.BackgroundColor3 = Color3.fromRGB(10,10,10); Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Config.Color
+local OpenBtn = Instance.new("TextButton", Screen); OpenBtn.Size = UDim2.new(0, 150, 0, 35); OpenBtn.Position = UDim2.new(0.5, -75, 0, 15); OpenBtn.BackgroundColor3 = Color3.fromRGB(10,10,10); OpenBtn.Text = "OPEN BACON HUB"; OpenBtn.TextColor3 = Config.Color; OpenBtn.Font = Enum.Font.GothamBold; OpenBtn.TextSize = 12; Instance.new("UICorner", OpenBtn); Instance.new("UIStroke", OpenBtn).Color = Config.Color
+
+local Main = Instance.new("Frame", Screen); Main.Size = UDim2.new(0, 250, 0, 420); Main.Position = UDim2.new(0.5, -125, 0.5, -210); Main.BackgroundColor3 = Color3.fromRGB(10,10,10); Main.Visible = true; Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Config.Color
+local Head = Instance.new("Frame", Main); Head.Size = UDim2.new(1, 0, 0, 40); Head.BackgroundTransparency = 1
+local Title = Instance.new("TextLabel", Head); Title.Size = UDim2.new(1, -40, 1, 0); Title.Text = "  BACON HUB V25"; Title.TextColor3 = Config.Color; Title.Font = Enum.Font.GothamBold; Title.BackgroundTransparency = 1; Title.TextXAlignment = 0; Title.Position = UDim2.new(0, 10, 0, 0)
+local Close = Instance.new("TextButton", Head); Close.Size = UDim2.new(0, 26, 0, 26); Close.Position = UDim2.new(1, -33, 0.5, -13); Close.BackgroundColor3 = Color3.fromRGB(0,0,0); Close.Text = "X"; Close.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", Close)
+
 local List = Instance.new("ScrollingFrame", Main); List.Size = UDim2.new(1, -20, 1, -55); List.Position = UDim2.new(0, 10, 0, 50); List.BackgroundTransparency = 1; List.ScrollBarThickness = 0; Instance.new("UIListLayout", List).Padding = UDim.new(0, 5)
 
-local function addBtn(txt, tag)
+-- TOGGLE LOGIC
+local function toggleMenu() Main.Visible = not Main.Visible end
+Close.MouseButton1Click:Connect(toggleMenu); OpenBtn.MouseButton1Click:Connect(toggleMenu)
+UIS.InputBegan:Connect(function(i, g) if not g and i.KeyCode == Enum.KeyCode.K then toggleMenu() end end)
+
+-- DRAG LOGIC
+local d, s, sp, di
+Main.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then d = true; s = i.Position; sp = Main.Position end end)
+UIS.InputChanged:Connect(function(i) if d and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then di = i end end)
+UIS.InputEnded:Connect(function() d = false end)
+RunService.RenderStepped:Connect(function() if d and di then local delta = di.Position - s; Main.Position = UDim2.new(sp.X.Scale, sp.X.Offset + delta.X, sp.Y.Scale, sp.Y.Offset + delta.Y) end end)
+
+local function addBtn(txt, tag, callback)
     local b = Instance.new("TextButton", List); b.Size = UDim2.new(1, 0, 0, 35); b.BackgroundColor3 = Color3.fromRGB(25,25,25); b.Text = txt; b.TextColor3 = Color3.new(1,1,1); b.Font = Enum.Font.Gotham; b.TextSize = 11; Instance.new("UICorner", b)
     b.MouseButton1Click:Connect(function()
-        Toggles[tag] = not Toggles[tag]
-        b.BackgroundColor3 = Toggles[tag] and Config.Color or Color3.fromRGB(25,25,25)
-        b.TextColor3 = Toggles[tag] and Color3.new(0,0,0) or Color3.new(1,1,1)
+        if tag then Toggles[tag] = not Toggles[tag]; b.BackgroundColor3 = Toggles[tag] and Config.Color or Color3.fromRGB(25,25,25); b.TextColor3 = Toggles[tag] and Color3.new(0,0,0) or Color3.new(1,1,1) end
+        if callback then callback() end
     end)
 end
 
+-- FEATURES
 addBtn("GOD MODE", "God")
-addBtn("DESYNC (LAG SWITCH)", "Desync")
+addBtn("SHIFT LOCK", "ShiftLock")
+addBtn("DESYNC (LAG)", "Desync")
 addBtn("SMOOTH FLY", "Fly")
 addBtn("SPEED ONLY", "Speed")
 addBtn("JUMP ONLY", "Jump")
 addBtn("NOCLIP", "Noclip")
-addBtn("SAFE PLATFORM", "Plat")
-addBtn("REVEAL (BYPASS)", "Reveal")
+addBtn("REVEAL PLAYERS", "Reveal")
 addBtn("DIRECTION SPHERE", "Dir")
+addBtn("SAFE PLATFORM", "Plat")
+addBtn("RESET", nil, function() if LocalPlayer.Character then LocalPlayer.Character:BreakJoints() end end)
 
--- // VISUALS //
-RunService.RenderStepped:Connect(function()
+-- // ENGINE //
+RunService.Heartbeat:Connect(function()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hum = char.Humanoid; local hrp = char.HumanoidRootPart
+
+    -- GOD MODE (Aggressive)
+    if Toggles.God then
+        hum.MaxHealth = math.huge; hum.Health = math.huge
+        if hum:GetState() == Enum.HumanoidStateType.Dead then hum:ChangeState(Enum.HumanoidStateType.Running) end
+    end
+
+    -- SHIFT LOCK
+    hum.CameraOffset = Toggles.ShiftLock and Vector3.new(1.7, 0.5, 0) or Vector3.new(0,0,0)
+    UIS.MouseBehavior = Toggles.ShiftLock and Enum.MouseBehavior.LockCenter or Enum.MouseBehavior.Default
+
+    -- MOVEMENT
+    if Toggles.Noclip then for _, v in pairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+    if not Toggles.Fly then
+        hum.WalkSpeed = Toggles.Speed and Config.WS or 16
+        hum.JumpPower = Toggles.Jump and Config.JP or 50
+    end
+
+    -- PLAYERS SENSE
     for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local char = p.Character
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local pc = p.Character; local prp = pc.HumanoidRootPart
+            
             if Toggles.Reveal then
-                for _, v in pairs(char:GetDescendants()) do
-                    if v:IsA("BasePart") or v:IsA("Decal") then v.LocalTransparencyModifier = 0; v.Transparency = 0 end
-                end
+                for _, v in pairs(pc:GetDescendants()) do if v:IsA("BasePart") or v:IsA("Decal") then v.LocalTransparencyModifier = 0; v.Transparency = 0 end end
             end
-            local s = char:FindFirstChild("BaconSphere")
+
+            local s = pc:FindFirstChild("BaconSphere")
             if not s and Toggles.Dir then
-                s = Instance.new("Part", char); s.Name = "BaconSphere"; s.Shape = Enum.PartType.Ball; s.Size = Vector3.new(2,2,2); s.Color = Config.Color; s.Material = Enum.Material.Neon; s.Anchored = true; s.CanCollide = false
+                s = Instance.new("Part", pc); s.Name = "BaconSphere"; s.Shape = Enum.PartType.Ball; s.Size = Vector3.new(2,2,2); s.Material = Enum.Material.Neon; s.Anchored = true; s.CanCollide = false
             end
             if s then
                 s.Transparency = Toggles.Dir and 0.4 or 1
-                if char:FindFirstChild("HumanoidRootPart") then s.CFrame = char.HumanoidRootPart.CFrame * CFrame.new(0, 1.5, -2.5) end
+                s.CFrame = prp.CFrame * CFrame.new(0, 1.5, -2.5)
+                
+                -- DIRECTION ALERT (Turn Green if looking at you)
+                local toMe = (hrp.Position - prp.Position).Unit
+                local looking = prp.CFrame.LookVector
+                local dot = looking:Dot(toMe)
+                s.Color = (dot > 0.8) and Config.Alert or Config.Color -- 0.8 is a tight angle
             end
         end
     end
