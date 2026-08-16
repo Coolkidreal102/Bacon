@@ -1,0 +1,30 @@
+local hitboxesFolder = workspace:WaitForChild("Hitboxes")
+
+local function resizeHitbox(item)
+    if item.Name == "YooimstealingHitbox" and item:IsA("BasePart") then
+        
+
+        local extraWidth = 15  
+        local extraHeight = 15 
+        
+    
+        item.Size = Vector3.new(
+            item.Size.X + extraWidth, 
+            item.Size.Y + extraHeight, 
+            item.Size.Z + extraLength
+        )
+        
+        
+        item.CFrame = item.CFrame * CFrame.new(0, 0, -(extraLength / 2))
+    end
+end
+
+
+hitboxesFolder.ChildAdded:Connect(function(child)
+    resizeHitbox(child)
+end)
+
+
+for _, item in pairs(hitboxesFolder:GetChildren()) do
+    resizeHitbox(item)
+end
